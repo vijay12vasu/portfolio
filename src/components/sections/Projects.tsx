@@ -1,88 +1,92 @@
-import { useState, useRef } from 'react';
-import { motion, AnimatePresence, useTransform } from 'framer-motion';
+import { useState, useRef, useEffect, useCallback } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { projects } from '../../data/projects';
 import type { Project } from '../../data/projects';
-import { FiArrowUpRight, FiX, FiGithub, FiLayers, FiTerminal } from 'react-icons/fi';
+import { FiArrowUpRight, FiX, FiGithub, FiArrowRight, FiGlobe, FiServer, FiDatabase } from 'react-icons/fi';
 import { Magnetic } from '../ui/Magnetic';
-import { TiltCard } from '../ui/TiltCard';
-import { useProximity } from '../../hooks/useProximity';
+import { TechnologyMark } from '../ui/TechnologyMark';
 
-function FeaturedCard({ project, onClick }: { project: Project, onClick: () => void }) {
-  const cardRef = useRef<HTMLButtonElement>(null);
-  const proximity = useProximity(cardRef, 200);
-  
-  // Proximity glow opacity
-  const proximityGlow = useTransform(proximity, [0, 1], [0, 0.4]);
+function ArchitectureOverview() {
+  const stages = [
+    { icon: FiGlobe, label: 'Frontend', detail: 'React', tone: 'text-accent-cyan' },
+    { icon: FiServer, label: 'Services', detail: 'Spring Boot · FastAPI', tone: 'text-accent-violet' },
+    { icon: FiDatabase, label: 'Database', detail: 'MongoDB', tone: 'text-accent-cyan' },
+  ];
 
   return (
-    <motion.button
-      ref={cardRef}
-      key={project.id}
+    <div role="img" aria-label="Architecture overview, not an application screenshot: React frontend, Spring Boot and FastAPI services, and MongoDB database." className="project-architecture relative overflow-hidden rounded-2xl border border-white/[0.09] p-5 sm:p-7 md:p-8">
+      <div className="relative z-10 flex items-center justify-between gap-3">
+        <span className="text-[9px] font-mono uppercase tracking-[0.2em] text-white/45">Architecture overview</span>
+        <span className="rounded-full border border-white/10 px-2.5 py-1 text-[8px] font-mono uppercase tracking-wider text-white/40">Documented stack</span>
+      </div>
+      <div className="relative z-10 mt-8 grid grid-cols-[1fr_auto_1fr_auto_1fr] items-center gap-2 sm:mt-12 sm:gap-3">
+        {stages.map(({ icon: Icon, label, detail, tone }, index) => (
+          <div key={label} className="contents">
+            <div className="min-w-0">
+              <Icon aria-hidden="true" className={`mb-3 h-5 w-5 sm:h-6 sm:w-6 ${tone}`} />
+              <p className="text-[8px] font-mono uppercase tracking-[0.14em] text-white/40 sm:text-[9px]">{label}</p>
+              <p className="mt-1 break-words text-[11px] font-medium text-white/85 sm:text-sm">{detail}</p>
+            </div>
+            {index < stages.length - 1 && <FiArrowRight aria-hidden="true" className="h-3.5 w-3.5 text-white/25 sm:h-4 sm:w-4" />}
+          </div>
+        ))}
+      </div>
+      <div aria-hidden="true" className="project-architecture-orbit absolute -right-24 -top-32 h-80 w-80 rounded-full" />
+      <p className="relative z-10 mt-8 border-t border-white/[0.08] pt-3 text-[8px] font-mono uppercase tracking-[0.12em] text-white/35 sm:mt-10">A visual summary of the documented stack · Not an application screenshot</p>
+    </div>
+  );
+}
+
+function FeaturedCard({ project, onClick }: { project: Project; onClick: () => void }) {
+  return (
+    <motion.article
       initial={{ opacity: 0, y: 20 }}
       whileInView={{ opacity: 1, y: 0 }}
-      viewport={{ once: true }}
-      transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
-      className="group cursor-none text-left w-full relative flex flex-col p-8 md:p-12 border border-white/10 bg-surface-elevated/30 hover:bg-surface-elevated/50 backdrop-blur-sm transition-all duration-700 rounded-2xl overflow-hidden preserve-3d perspective-1000 focus:outline-none focus:ring-2 focus:ring-accent-cyan/50"
-      data-cursor="project"
-      onClick={onClick}
+      viewport={{ once: true, margin: '-80px' }}
+      transition={{ duration: 0.65, ease: [0.16, 1, 0.3, 1] }}
+      className="project-showcase group relative overflow-hidden rounded-2xl border border-white/[0.09] bg-surface-elevated/30 p-5 shadow-2xl backdrop-blur-sm sm:p-7 md:p-9"
     >
-      {/* Structural BG element (hover = 1, proximity = interpolated) */}
-      <motion.div 
-        className="absolute top-0 right-0 w-[500px] h-[500px] bg-gradient-to-br from-accent-cyan/10 to-transparent blur-[80px] pointer-events-none rounded-full translate-x-1/3 -translate-y-1/3 transition-opacity duration-700 group-hover:opacity-100" 
-        style={{ transform: 'translateZ(-50px)', opacity: proximityGlow }} 
-      />
-      
-      <div className="relative z-10 flex flex-col lg:flex-row gap-12 lg:gap-24 transition-transform duration-700 group-hover:[transform:translateZ(30px)]">
-        
-        {/* Left Column */}
-        <div className="w-full lg:w-1/3 flex flex-col gap-6">
-          <div className="w-16 h-16 rounded-xl bg-background border border-white/10 flex items-center justify-center mb-4 group-hover:border-accent-cyan/30 transition-all duration-500 shadow-2xl group-hover:[transform:translateZ(20px)]">
-            <FiLayers className="w-6 h-6 text-white/50 group-hover:text-accent-cyan transition-colors" />
+      <div aria-hidden="true" className="project-showcase-glow absolute -left-32 -top-40 h-80 w-80 rounded-full" />
+      <div className="relative z-10 grid items-center gap-8 lg:grid-cols-[0.86fr_1.14fr] lg:gap-12">
+        <div className="min-w-0">
+          <div className="mb-5 flex items-center gap-3 text-[9px] font-mono uppercase tracking-[0.2em] text-accent-cyan/85">
+            <span className="h-1.5 w-1.5 rounded-full bg-accent-cyan shadow-[0_0_10px_rgba(34,211,238,.7)]" />
+            Featured project
           </div>
-          <h4 className="text-4xl md:text-5xl font-bold text-white tracking-tight font-display">{project.title}</h4>
-          <p className="text-lg text-white/50 font-light">{project.subtitle}</p>
-          
-          <div className="flex flex-wrap gap-2 mt-4">
-            {project.tech.map(t => (
-              <span key={t} className="px-3 py-1 bg-white/5 border border-white/5 rounded-full text-[10px] font-mono text-white/60 uppercase tracking-wider">
-                {t}
+          <h3 className="font-display text-4xl font-semibold tracking-tight text-white sm:text-5xl md:text-6xl">{project.title}<span className="text-accent-cyan">.</span></h3>
+          <p className="mt-3 text-sm font-medium text-white/55 sm:text-base">{project.subtitle}</p>
+          <p className="mt-5 max-w-xl text-sm font-light leading-7 text-white/65 sm:text-base sm:leading-8">{project.description}</p>
+
+          <div className="mt-6 flex flex-wrap items-center gap-x-4 gap-y-3" aria-label="Project technologies">
+            {project.tech.map(tech => (
+              <span key={tech} className="inline-flex items-center gap-2 text-[10px] font-mono text-white/60 sm:text-[11px]">
+                <TechnologyMark name={tech} className="h-[18px] w-[18px] shrink-0" />{tech}
               </span>
             ))}
           </div>
-        </div>
-        
-        {/* Right Column */}
-        <div className="w-full lg:w-2/3 flex flex-col justify-between pt-2">
-          <div className="grid md:grid-cols-2 gap-12">
-            <div className="flex flex-col gap-4">
-              <span className="text-[10px] font-mono text-white/30 uppercase tracking-widest border-b border-white/5 pb-2">Architecture Objective</span>
-              <p className="text-sm text-white/70 font-light leading-relaxed">{project.caseStudy?.direction}</p>
-            </div>
-            <div className="flex flex-col gap-4">
-              <span className="text-[10px] font-mono text-white/30 uppercase tracking-widest border-b border-white/5 pb-2">Current State</span>
-              <p className="text-sm text-white/70 font-light leading-relaxed">{project.caseStudy?.state}</p>
-            </div>
-          </div>
-          
-          <div className="mt-12 flex justify-end">
-            <span aria-hidden="true" className="inline-flex items-center gap-3 text-[10px] font-mono text-accent-cyan/70 group-hover:text-accent-cyan transition-colors duration-500 uppercase tracking-widest">
-              Initialize Case Study <FiArrowUpRight className="group-hover:translate-x-1 group-hover:-translate-y-1 transition-transform" />
-            </span>
+
+          <div className="mt-7 flex flex-wrap items-center gap-x-5 gap-y-3">
+            <button type="button" onClick={onClick} className="inline-flex min-h-10 items-center gap-2 text-[10px] font-mono uppercase tracking-[0.13em] text-white/65 transition hover:text-accent-cyan focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-cyan/60 focus-visible:ring-offset-4 focus-visible:ring-offset-background">
+              Project notes <FiArrowUpRight aria-hidden="true" className="h-3.5 w-3.5" />
+            </button>
+            <a href={project.github} target="_blank" rel="noopener noreferrer" className="inline-flex min-h-10 items-center gap-2 text-[10px] font-mono uppercase tracking-[0.13em] text-white/45 transition hover:text-white/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-cyan/60 focus-visible:ring-offset-4 focus-visible:ring-offset-background">
+              <FiGithub aria-hidden="true" className="h-3.5 w-3.5" /> Repository
+            </a>
           </div>
         </div>
+
+        <ArchitectureOverview />
       </div>
-    </motion.button>
+    </motion.article>
   );
 }
 
 export function Projects() {
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
-
-  const featured = projects.filter(p => p.type === 'FEATURED');
-  const learning = projects.filter(p => p.type === 'LEARNING');
+  const closeCaseStudy = useCallback(() => setSelectedProject(null), []);
 
   return (
-    <section id="projects" className="py-32 relative bg-background border-y border-white/[0.02] overflow-hidden">
+    <section id="projects" className="portfolio-section relative overflow-hidden border-y border-white/[0.04] bg-background py-24 md:py-32">
       
       {/* Subtle Ambient Lighting */}
       <div className="absolute inset-0 pointer-events-none" style={{ transform: 'translateZ(-500px)' }}>
@@ -95,98 +99,27 @@ export function Projects() {
           initial={{ opacity: 0, y: 20 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true, margin: "-100px" }}
-          className="mb-24"
+          className="mb-14 sm:mb-16"
         >
           <div className="flex items-center gap-4 mb-8">
             <span className="w-8 h-[1px] bg-accent-blue/50" />
             <span className="text-[10px] font-mono text-accent-blue tracking-widest uppercase">
-              04 / WORKSPACE
+              04 / WORK
             </span>
           </div>
-          <h3 className="text-4xl md:text-6xl font-bold tracking-tighter text-white font-display">System Architectures</h3>
+          <h2 className="font-display text-3xl font-semibold tracking-tight text-white sm:text-4xl md:text-5xl">Selected work.</h2>
         </motion.div>
 
-        <div className="flex flex-col gap-32">
+        <div className="flex flex-col gap-12">
           
-          {/* Featured Architecture */}
-          <div className="flex flex-col gap-8 relative z-20">
-            <div className="text-[10px] font-mono text-white/40 tracking-widest uppercase mb-4 pl-2 flex items-center gap-4">
-              <span className="w-2 h-2 rounded-full bg-accent-cyan" />
-              DEPLOYED PLATFORMS
-              <span className="flex-1 h-[1px] bg-white/5" />
-            </div>
-            
-            {featured.map(project => (
-              <FeaturedCard 
-                key={project.id} 
-                project={project} 
-                onClick={() => setSelectedProject(project)} 
+          <div className="relative z-20 flex flex-col gap-5">
+            {projects.map(project => (
+              <FeaturedCard
+                key={project.id}
+                project={project}
+                onClick={() => setSelectedProject(project)}
               />
             ))}
-          </div>
-
-          {/* Development Archive (Bento Grid) */}
-          <div className="relative z-10 pt-16">
-            <div className="text-[10px] font-mono text-white/40 tracking-widest uppercase mb-12 pl-2 flex items-center gap-4">
-              <span className="w-1.5 h-1.5 rounded-full bg-white/20" />
-              ENGINEERING FOUNDATIONS
-              <span className="flex-1 h-[1px] bg-white/5" />
-            </div>
-            
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 perspective-1000">
-              {learning.map((project, idx) => (
-                <motion.div
-                  key={project.id}
-                  initial={{ opacity: 0, y: 20 }}
-                  whileInView={{ opacity: 1, y: 0 }}
-                  viewport={{ once: true }}
-                  transition={{ duration: 0.5, delay: idx * 0.1 }}
-                >
-                  <TiltCard
-                    className="group flex flex-col justify-between p-8 border border-white/5 bg-white/[0.01] hover:bg-white/[0.03] cursor-none transition-colors rounded-xl min-h-[300px]"
-                    onClick={() => setSelectedProject(project)}
-                  >
-                    <div>
-                      <div className="flex items-center justify-between mb-8">
-                        <FiTerminal className="text-white/20 group-hover:text-white/60 transition-colors w-6 h-6" />
-                        <span className="text-[9px] font-mono text-white/20 uppercase tracking-widest group-hover:text-accent-blue transition-colors">
-                          {project.status}
-                        </span>
-                      </div>
-                      <h5 className="text-xl font-bold text-white/90 tracking-tight mb-4 font-display">
-                        {project.title}
-                      </h5>
-                      <p className="text-sm text-white/50 font-light leading-relaxed line-clamp-3">
-                        {project.description}
-                      </p>
-                    </div>
-                    
-                    <div className="mt-8 flex flex-wrap gap-2">
-                      {project.tech.map(t => (
-                        <span key={t} className="text-[10px] font-mono text-white/30 uppercase tracking-widest">
-                          {t}
-                        </span>
-                      ))}
-                    </div>
-                  </TiltCard>
-                </motion.div>
-              ))}
-            </div>
-
-            <div className="mt-16 flex justify-center">
-              <Magnetic intensity={0.2}>
-                <a 
-                  href="https://github.com/vijay12vasu" 
-                  target="_blank" 
-                  rel="noopener noreferrer"
-                  className="group flex items-center gap-3 px-8 py-4 bg-white/5 border border-white/10 rounded-full text-xs font-mono tracking-widest text-white/60 hover:text-white hover:bg-white/10 transition-colors cursor-none"
-                  data-cursor="hover"
-                >
-                  <FiGithub className="w-4 h-4" />
-                  <span>VIEW FULL ARCHIVE</span>
-                </a>
-              </Magnetic>
-            </div>
           </div>
           
         </div>
@@ -196,7 +129,7 @@ export function Projects() {
         {selectedProject && (
           <CaseStudyModal 
             project={selectedProject} 
-            onClose={() => setSelectedProject(null)} 
+            onClose={closeCaseStudy}
           />
         )}
       </AnimatePresence>
@@ -205,28 +138,78 @@ export function Projects() {
 }
 
 function CaseStudyModal({ project, onClose }: { project: Project; onClose: () => void }) {
+  const dialogRef = useRef<HTMLDivElement>(null);
+  const closeButtonRef = useRef<HTMLButtonElement>(null);
+
+  useEffect(() => {
+    const previousFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    closeButtonRef.current?.focus();
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        onClose();
+        return;
+      }
+
+      if (event.key !== 'Tab' || !dialogRef.current) return;
+      const focusable = Array.from(dialogRef.current.querySelectorAll<HTMLElement>(
+        'a[href], button:not([disabled]), [tabindex]:not([tabindex="-1"])',
+      ));
+      if (focusable.length === 0) return;
+
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown);
+      document.body.style.overflow = previousOverflow;
+      previousFocus?.focus();
+    };
+  }, [onClose]);
+
   return (
     <motion.div
       initial={{ opacity: 0, backdropFilter: "blur(0px)" }}
       animate={{ opacity: 1, backdropFilter: "blur(20px)" }}
       exit={{ opacity: 0, backdropFilter: "blur(0px)" }}
-      className="fixed inset-0 z-[100] flex items-center justify-center p-4 md:p-12 bg-background/80 cursor-none"
+      role="presentation"
+      data-lenis-prevent
+      className="fixed inset-0 z-[100] flex items-center justify-center overscroll-none bg-background/80 p-3 backdrop-blur-lg sm:p-5 md:p-10"
       onClick={onClose}
       data-cursor="hover"
     >
       <motion.div
+        ref={dialogRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="case-study-title"
+        tabIndex={-1}
         initial={{ y: 40, opacity: 0, scale: 0.95 }}
         animate={{ y: 0, opacity: 1, scale: 1 }}
         exit={{ y: 40, opacity: 0, scale: 0.95 }}
         transition={{ duration: 0.5, type: "spring", damping: 25, stiffness: 200 }}
-        className="w-full max-w-5xl h-[85vh] bg-surface-elevated/90 border border-white/10 rounded-3xl flex flex-col relative overflow-hidden shadow-2xl"
+        className="relative flex h-[min(88svh,900px)] w-full max-w-5xl flex-col overflow-hidden rounded-2xl border border-white/10 bg-surface-elevated/95 shadow-2xl outline-none focus-visible:ring-2 focus-visible:ring-accent-cyan/40 sm:rounded-3xl"
         onClick={e => e.stopPropagation()}
         data-cursor="default"
       >
         {/* Subtle grid bg for modal */}
         <div className="absolute inset-0 bg-grid-small opacity-20 pointer-events-none" />
 
-        <button 
+        <button
+          type="button"
+          ref={closeButtonRef}
           onClick={onClose}
           aria-label="Close Case Study"
           className="absolute top-6 right-6 w-12 h-12 flex items-center justify-center bg-white/5 hover:bg-white/10 rounded-full text-white/50 hover:text-white transition-colors z-20 cursor-none border border-white/5 focus:outline-none focus:ring-2 focus:ring-white/50"
@@ -235,18 +218,19 @@ function CaseStudyModal({ project, onClose }: { project: Project; onClose: () =>
           <FiX className="w-5 h-5" />
         </button>
         
-        <div className="overflow-y-auto px-10 py-16 md:px-20 md:py-24 h-full custom-scrollbar relative z-10">
+        <div data-lenis-prevent className="min-h-0 flex-1 overflow-y-auto overscroll-contain touch-pan-y px-5 py-16 sm:px-10 md:px-20 md:py-24 custom-scrollbar relative z-10">
           <div className="mb-16 max-w-3xl">
             <span className="text-[10px] font-mono text-accent-blue tracking-widest uppercase mb-6 block">
               SYSTEM PROFILE // {project.id}
             </span>
-            <h2 className="text-4xl md:text-6xl font-bold tracking-tight mb-8 text-white font-display leading-[1.1]">{project.title}</h2>
+            <h2 id="case-study-title" className="text-4xl md:text-6xl font-bold tracking-tight mb-8 text-white font-display leading-[1.1]">{project.title}</h2>
             <p className="text-xl md:text-2xl text-white/60 font-light leading-relaxed">{project.description}</p>
           </div>
           
           <div className="flex flex-wrap gap-3 mb-24 pb-12 border-b border-white/5">
             {project.tech.map(t => (
-              <span key={t} className="px-4 py-2 bg-white/5 border border-white/10 rounded-full text-[10px] font-mono text-white/70 tracking-widest uppercase">
+              <span key={t} className="inline-flex items-center gap-2 px-4 py-2 bg-white/5 border border-white/10 rounded-full text-[10px] font-mono text-white/70 tracking-widest uppercase">
+                <TechnologyMark name={t} className="h-4 w-4" />
                 {t}
               </span>
             ))}
@@ -276,13 +260,15 @@ function CaseStudyModal({ project, onClose }: { project: Project; onClose: () =>
                 <p className="text-base text-white/70 leading-relaxed font-light">{project.caseStudy.learning}</p>
               </div>
               
-              <div className="pt-16 mt-8">
-                <Magnetic intensity={0.2}>
-                  <a href={project.github} target="_blank" rel="noopener noreferrer" className="inline-flex items-center justify-center gap-4 px-8 py-4 bg-white text-black rounded-full text-[11px] uppercase tracking-widest font-mono hover:scale-[1.02] transition-transform cursor-none" data-cursor="hover">
-                    Access Source Code <FiArrowUpRight className="w-4 h-4" />
-                  </a>
-                </Magnetic>
-              </div>
+              {project.github && (
+                <div className="pt-16 mt-8">
+                  <Magnetic intensity={0.2}>
+                    <a href={project.github} target="_blank" rel="noopener noreferrer" className="inline-flex items-center justify-center gap-4 px-8 py-4 bg-white text-black rounded-full text-[11px] uppercase tracking-widest font-mono hover:scale-[1.02] transition-transform cursor-none" data-cursor="hover">
+                      Access Source Code <FiArrowUpRight className="w-4 h-4" />
+                    </a>
+                  </Magnetic>
+                </div>
+              )}
             </div>
           ) : (
             <div className="space-y-20">

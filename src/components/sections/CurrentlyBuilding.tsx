@@ -3,9 +3,9 @@ import { motion } from 'framer-motion';
 export function CurrentlyBuilding() {
   const currentDev = [
     {
-      title: "ECHO",
-      desc: "Personal AI desktop system",
-      status: "ACTIVE",
+      title: "LOCAL AI",
+      desc: "Exploring local LLM inference and on-device AI systems",
+      status: "LEARNING",
       color: "text-blue-500",
       bg: "bg-blue-500"
     },

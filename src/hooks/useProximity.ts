@@ -1,56 +1,59 @@
 import { useEffect } from 'react';
 import type { RefObject } from 'react';
-import { useMotionValue, useSpring, useAnimationFrame } from 'framer-motion';
+import { useMotionValue, useSpring } from 'framer-motion';
 
-// Global motion values for pointer to avoid multiple event listeners
+// One shared pointer listener updates proximity only when the pointer, page, or viewport changes.
 export const globalPointerX = { current: 0 };
 export const globalPointerY = { current: 0 };
+
+const proximitySubscribers = new Set<() => void>();
 let isPointerListening = false;
+
+function updateSubscribers() {
+  proximitySubscribers.forEach(update => update());
+}
 
 export function initGlobalPointer() {
   if (typeof window === 'undefined' || isPointerListening) return;
-  
-  const handleMouseMove = (e: MouseEvent) => {
-    globalPointerX.current = e.clientX;
-    globalPointerY.current = e.clientY;
+
+  const handlePointerMove = (event: PointerEvent) => {
+    if (event.pointerType === 'touch') return;
+    globalPointerX.current = event.clientX;
+    globalPointerY.current = event.clientY;
+    updateSubscribers();
   };
-  
-  window.addEventListener('mousemove', handleMouseMove, { passive: true });
+
+  window.addEventListener('pointermove', handlePointerMove, { passive: true });
+  window.addEventListener('scroll', updateSubscribers, { passive: true });
+  window.addEventListener('resize', updateSubscribers, { passive: true });
   isPointerListening = true;
 }
 
-export function useProximity(ref: RefObject<HTMLElement | null>, radius: number = 180) {
+export function useProximity(ref: RefObject<HTMLElement | null>, radius = 180) {
+  const proximity = useMotionValue(0);
+
   useEffect(() => {
     initGlobalPointer();
-  }, []);
 
-  const proximity = useMotionValue(0);
-  
-  useAnimationFrame(() => {
-    if (!ref.current || !isPointerListening) return;
-    
-    const rect = ref.current.getBoundingClientRect();
-    const px = globalPointerX.current;
-    const py = globalPointerY.current;
-    
-    // Calculate distance from pointer to the closest edge of the bounding box
-    const dx = Math.max(rect.left - px, 0, px - rect.right);
-    const dy = Math.max(rect.top - py, 0, py - rect.bottom);
-    const dist = Math.sqrt(dx * dx + dy * dy);
-    
-    // Normalize to 0-1 (1 = inside/touching, 0 = outside radius)
-    let rawProx = 1 - (dist / radius);
-    if (rawProx < 0) rawProx = 0;
-    if (rawProx > 1) rawProx = 1;
-    
-    // Slight ease-out curve (sine) to boost the early detection phase.
-    // This removes the "dead zone" at the edge of the radius without washing out the center.
-    const curvedProx = Math.sin(rawProx * (Math.PI / 2));
-    
-    proximity.set(curvedProx);
-  });
+    const update = () => {
+      const element = ref.current;
+      if (!element) return;
 
-  // Smoothed spring value - tuned for an immediate but liquid feel
-  // Higher stiffness for fast response, optimal damping to avoid bounciness
+      const bounds = element.getBoundingClientRect();
+      const dx = Math.max(bounds.left - globalPointerX.current, 0, globalPointerX.current - bounds.right);
+      const dy = Math.max(bounds.top - globalPointerY.current, 0, globalPointerY.current - bounds.bottom);
+      const distance = Math.sqrt(dx * dx + dy * dy);
+      const progress = Math.max(0, Math.min(1, 1 - distance / radius));
+      proximity.set(Math.sin(progress * (Math.PI / 2)));
+    };
+
+    proximitySubscribers.add(update);
+    update();
+    return () => {
+      proximitySubscribers.delete(update);
+      proximity.set(0);
+    };
+  }, [proximity, radius, ref]);
+
   return useSpring(proximity, { damping: 40, stiffness: 250, mass: 0.4 });
 }

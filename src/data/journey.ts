@@ -40,6 +40,6 @@ export const journey: JourneyStage[] = [
     category: "SEPTEMBER 2026",
     status: "CURRENT",
     technologies: ["Python", "Local LLMs", "DSA", "Java"],
-    description: "Currently in my 3rd year (5th semester). Engineering Echo, diving into local AI inference, and refining data structure fundamentals."
+    description: "Currently in my 3rd year (5th semester). Exploring local AI inference and refining data structure fundamentals."
   }
 ];

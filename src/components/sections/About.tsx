@@ -1,87 +1,82 @@
-import { useRef } from 'react';
+import { FiBookOpen, FiCpu, FiLayers, FiShield, FiTarget } from 'react-icons/fi';
 import { profile } from '../../data/profile';
 
-export function About() {
-  const containerRef = useRef<HTMLDivElement>(null);
+const focusAreas = [
+  { label: 'Mastering', title: 'Distributed Backends', detail: 'Java, Spring Boot, Microservices', icon: FiLayers, tone: 'text-accent-cyan' },
+  { label: 'Research', title: 'Systems Security', detail: 'Applied Cryptography & Defense', icon: FiShield, tone: 'text-accent-violet' },
+];
 
+export function About() {
   return (
-    <section id="about" ref={containerRef} className="py-32 md:py-48 relative bg-background perspective-2000 overflow-hidden">
-      
-      {/* Ambient Lighting Stage */}
-      <div className="absolute inset-0 pointer-events-none preserve-3d" style={{ transform: 'translateZ(-600px)' }}>
-        <div className="absolute top-1/4 right-[10%] w-[600px] h-[600px] bg-[radial-gradient(circle_at_center,_var(--color-accent-blue),_transparent)] opacity-[0.03] blur-[80px]" />
-      </div>
-      
-      <div className="max-w-7xl mx-auto px-6 md:px-12 relative z-10">
-        
-        <div className="flex flex-col lg:flex-row gap-20 lg:gap-32">
-          
-          {/* Left: The Person */}
-          <div className="w-full lg:w-1/2">
-            <h3 className="text-[10px] font-mono text-accent-blue tracking-widest uppercase mb-12 flex items-center gap-4">
-              01 / OVERVIEW
-              <span className="w-12 h-[1px] bg-accent-blue/30" />
-            </h3>
-            
-            <p className="text-2xl md:text-3xl lg:text-4xl text-white/90 font-light leading-[1.4] tracking-tight mb-16 font-display">
+    <section id="about" className="portfolio-section relative overflow-hidden bg-background py-24 md:py-32">
+      <div aria-hidden="true" className="pointer-events-none absolute right-[5%] top-[12%] h-96 w-96 rounded-full bg-accent-blue/5 blur-[120px]" />
+      <div className="relative z-10 mx-auto max-w-7xl px-6 md:px-12">
+        <div className="mb-12 flex items-center gap-4">
+          <span className="text-[10px] font-mono uppercase tracking-[0.24em] text-accent-blue">01 / IDENTITY</span>
+          <span className="h-px w-10 bg-gradient-to-r from-accent-cyan/60 to-accent-violet/20" />
+        </div>
+
+        <div className="grid gap-12 lg:grid-cols-[1.05fr_0.95fr] lg:gap-20">
+          <div>
+            <h3 className="mb-6 text-[10px] font-mono uppercase tracking-[0.2em] text-accent-cyan/70">Engineering profile</h3>
+            <p className="max-w-2xl font-display text-2xl font-light leading-[1.35] tracking-tight text-white/90 sm:text-3xl lg:text-[2.6rem]">
               {profile.about.who_i_am}
             </p>
-            
-            {/* CURRENTLY Editorial */}
-            <div className="flex flex-col gap-8">
-              <h4 className="text-[10px] font-mono text-white/40 tracking-widest uppercase pb-4 border-b border-white/5">
-                Current Architecture Focus
-              </h4>
-              
-              <div className="flex flex-col gap-6">
-                <div className="flex flex-col sm:flex-row sm:items-baseline gap-2 sm:gap-6 group">
-                  <span className="w-24 text-[10px] font-mono text-accent-cyan tracking-widest uppercase shrink-0 group-hover:text-white transition-colors">Engineering</span>
-                  <span className="text-white/80 font-medium">Echo Pipeline <span className="text-white/40 font-light">— Private experimental AI orchestration</span></span>
-                </div>
-                
-                <div className="flex flex-col sm:flex-row sm:items-baseline gap-2 sm:gap-6 group">
-                  <span className="w-24 text-[10px] font-mono text-accent-amber tracking-widest uppercase shrink-0 group-hover:text-white transition-colors">Mastering</span>
-                  <span className="text-white/80 font-medium">Distributed Backends <span className="text-white/40 font-light">— Java, Spring Boot, Microservices</span></span>
-                </div>
-                
-                <div className="flex flex-col sm:flex-row sm:items-baseline gap-2 sm:gap-6 group">
-                  <span className="w-24 text-[10px] font-mono text-accent-violet tracking-widest uppercase shrink-0 group-hover:text-white transition-colors">Research</span>
-                  <span className="text-white/80 font-medium">Systems Security <span className="text-white/40 font-light">— Applied Cryptography & Defense</span></span>
-                </div>
+
+            <div className="mt-12">
+              <div className="mb-5 flex items-center gap-3">
+                <FiCpu aria-hidden="true" className="h-4 w-4 text-accent-cyan" />
+                <h4 className="text-[10px] font-mono uppercase tracking-[0.2em] text-white/50">Current architecture focus</h4>
+              </div>
+              <div className="grid gap-3 sm:grid-cols-2">
+                {focusAreas.map(({ label, title, detail, icon: Icon, tone }) => (
+                  <article key={title} className="group rounded-xl border border-white/10 bg-white/[0.025] p-5 transition duration-300 hover:border-white/20 hover:bg-white/[0.045]">
+                    <Icon aria-hidden="true" className={`mb-6 h-5 w-5 ${tone}`} />
+                    <span className="mb-2 block text-[9px] font-mono uppercase tracking-[0.18em] text-white/40">{label}</span>
+                    <h5 className="text-sm font-medium text-white/90">{title}</h5>
+                    <p className="mt-1 text-xs leading-relaxed text-white/45">{detail}</p>
+                  </article>
+                ))}
               </div>
             </div>
+
+            <article className="mt-8 flex items-start gap-4 rounded-xl border border-white/[0.09] bg-[linear-gradient(115deg,rgba(12,22,33,0.62),rgba(255,255,255,0.018))] p-5 sm:p-6">
+              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-accent-cyan/20 bg-accent-cyan/[0.06]">
+                <FiBookOpen aria-hidden="true" className="h-4 w-4 text-accent-cyan" />
+              </span>
+              <div>
+                <p className="text-[9px] font-mono uppercase tracking-[0.2em] text-white/40">Education · 2024–2028</p>
+                <h4 className="mt-2 text-sm font-medium text-white/90">B.E. Computer Science and Engineering</h4>
+                <p className="mt-1 text-xs text-white/50">Karpagam College of Engineering</p>
+              </div>
+            </article>
           </div>
 
-          {/* Right: The Approach */}
-          <div className="w-full lg:w-1/2 flex flex-col gap-12 lg:pt-20">
-            <div className="flex flex-col group">
-              <h4 className="text-[10px] font-mono text-white/40 tracking-widest uppercase mb-6 group-hover:text-white transition-colors">
-                What I'm Building
-              </h4>
-              <p className="text-[15px] text-white/60 font-light leading-relaxed group-hover:text-white/90 transition-colors duration-500">
-                {profile.about.what_im_building}
-              </p>
-            </div>
+          <div className="grid content-start gap-3 lg:pt-10">
+            <article className="rounded-xl border border-white/10 bg-white/[0.025] p-5 sm:p-6">
+              <div className="mb-4 flex items-center gap-3">
+                <FiLayers aria-hidden="true" className="h-4 w-4 text-accent-blue" />
+                <h4 className="text-[10px] font-mono uppercase tracking-[0.18em] text-white/50">What I’m building</h4>
+              </div>
+              <p className="text-sm leading-relaxed text-white/70">{profile.about.what_im_building}</p>
+            </article>
 
-            <div className="flex flex-col group">
-              <h4 className="text-[10px] font-mono text-white/40 tracking-widest uppercase mb-6 group-hover:text-white transition-colors">
-                Engineering Philosophy
-              </h4>
-              <p className="text-[15px] text-white/60 font-light leading-relaxed group-hover:text-white/90 transition-colors duration-500">
-                {profile.about.what_im_learning}
-              </p>
-            </div>
+            <article className="rounded-xl border border-white/10 bg-white/[0.025] p-5 sm:p-6">
+              <div className="mb-4 flex items-center gap-3">
+                <FiCpu aria-hidden="true" className="h-4 w-4 text-accent-violet" />
+                <h4 className="text-[10px] font-mono uppercase tracking-[0.18em] text-white/50">Engineering philosophy</h4>
+              </div>
+              <p className="text-sm leading-relaxed text-white/70">{profile.about.what_im_learning}</p>
+            </article>
 
-            <div className="flex flex-col pt-8 border-t border-white/5 mt-4 group">
-              <h4 className="text-[10px] font-mono text-white/40 tracking-widest uppercase mb-6 group-hover:text-white transition-colors">
-                The Objective
-              </h4>
-              <p className="text-[15px] text-accent-cyan/80 font-light leading-relaxed italic group-hover:text-accent-cyan transition-colors duration-500">
-                "{profile.about.where_im_heading}"
-              </p>
-            </div>
+            <article className="rounded-xl border border-accent-cyan/15 bg-accent-cyan/[0.035] p-5 sm:p-6">
+              <div className="mb-4 flex items-center gap-3">
+                <FiTarget aria-hidden="true" className="h-4 w-4 text-accent-cyan" />
+                <h4 className="text-[10px] font-mono uppercase tracking-[0.18em] text-white/50">The objective</h4>
+              </div>
+              <p className="text-sm italic leading-relaxed text-accent-cyan/80">“{profile.about.where_im_heading}”</p>
+            </article>
           </div>
-          
         </div>
       </div>
     </section>

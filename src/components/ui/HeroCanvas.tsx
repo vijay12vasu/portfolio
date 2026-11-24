@@ -1,86 +1,15 @@
-import { useRef, useMemo } from 'react';
-import { Canvas, useFrame } from '@react-three/fiber';
-import { Points, PointMaterial } from '@react-three/drei';
-import * as THREE from 'three';
-
-function ParticleTorus() {
-  const ref = useRef<THREE.Points>(null);
-  const torusRef = useRef<THREE.Mesh>(null);
-
-  // Generate particles around a torus shape
-  const particles = useMemo(() => {
-    const geometry = new THREE.TorusKnotGeometry(10, 3, 200, 32);
-    geometry.computeBoundingBox();
-    
-    const count = 4000;
-    const positions = new Float32Array(count * 3);
-    
-    // Distribute particles near the surface of the torus knot
-    const posAttribute = geometry.getAttribute('position');
-    
-    for (let i = 0; i < count; i++) {
-      const vertexIndex = Math.floor(Math.random() * posAttribute.count);
-      
-      const x = posAttribute.getX(vertexIndex);
-      const y = posAttribute.getY(vertexIndex);
-      const z = posAttribute.getZ(vertexIndex);
-      
-      // Add slight noise
-      const spread = 0.5;
-      positions[i * 3] = x + (Math.random() - 0.5) * spread;
-      positions[i * 3 + 1] = y + (Math.random() - 0.5) * spread;
-      positions[i * 3 + 2] = z + (Math.random() - 0.5) * spread;
-    }
-    
-    return positions;
-  }, []);
-
-  useFrame((state) => {
-    if (ref.current) {
-      ref.current.rotation.x = state.clock.elapsedTime * 0.1;
-      ref.current.rotation.y = state.clock.elapsedTime * 0.15;
-    }
-    if (torusRef.current) {
-      torusRef.current.rotation.x = state.clock.elapsedTime * 0.1;
-      torusRef.current.rotation.y = state.clock.elapsedTime * 0.15;
-    }
-  });
-
-  return (
-    <group>
-      <Points ref={ref} positions={particles} stride={3} frustumCulled={false}>
-        <PointMaterial
-          transparent
-          color="#8b5cf6"
-          size={0.05}
-          sizeAttenuation={true}
-          depthWrite={false}
-          blending={THREE.AdditiveBlending}
-        />
-      </Points>
-      
-      <mesh ref={torusRef}>
-        <torusKnotGeometry args={[10, 3, 100, 16]} />
-        <meshBasicMaterial 
-          color="#3b82f6" 
-          wireframe 
-          transparent 
-          opacity={0.03}
-        />
-      </mesh>
-    </group>
-  );
-}
-
+/** Lightweight hero atmosphere built with CSS; no WebGL renderer or animation loop. */
 export function HeroCanvas() {
   return (
-    <div className="absolute inset-0 z-0 pointer-events-none mix-blend-screen opacity-80">
-      <Canvas camera={{ position: [0, 0, 25], fov: 60 }}>
-        <fog attach="fog" args={['#030305', 10, 40]} />
-        <ambientLight intensity={0.5} />
-        <pointLight position={[10, 10, 10]} intensity={1} color="#3b82f6" />
-        <ParticleTorus />
-      </Canvas>
+    <div className="hero-atmosphere absolute inset-0 overflow-hidden" aria-hidden="true">
+      <div className="hero-atmosphere-grid absolute inset-0" />
+      <div className="hero-atmosphere-cyan absolute rounded-full" />
+      <div className="hero-atmosphere-violet absolute rounded-full" />
+      <div className="hero-atmosphere-ring absolute left-1/2 top-1/2 h-[min(72vw,52rem)] w-[min(72vw,52rem)] -translate-x-1/2 -translate-y-1/2 rounded-full" />
+      <div className="hero-atmosphere-orbit absolute rounded-full" />
+      <div className="hero-atmosphere-geometry absolute inset-0" />
+      <div className="hero-atmosphere-particles absolute inset-0" />
+      <div className="hero-atmosphere-vignette absolute inset-0" />
     </div>
   );
 }

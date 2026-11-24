@@ -70,6 +70,6 @@ export const learningPath = [
   },
   {
     stage: "SYSTEM BUILDING",
-    focus: "Echo"
+    focus: "Applied AI"
   }
 ];

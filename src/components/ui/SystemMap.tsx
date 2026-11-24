@@ -6,10 +6,9 @@ const nodes = [
   { id: 'about', label: 'WHO I AM', x: 0, y: -200, icon: 'USER' },
   { id: 'howithink', label: 'THINKING', x: -150, y: -100, icon: 'MIND' },
   { id: 'stack', label: 'TOOLS', x: 150, y: -100, icon: 'SYS' },
-  { id: 'echo', label: 'BUILDING', x: -200, y: 100, icon: 'AI' },
   { id: 'projects', label: 'WORKSPACE', x: 0, y: 0, icon: 'CODE' },
   { id: 'journey', label: 'JOURNEY', x: 200, y: 100, icon: 'PATH' },
-  { id: 'beyond', label: 'EXPLORATION', x: 0, y: 200, icon: 'EXP' },
+  { id: 'beyond', label: 'BEYOND', x: 0, y: 200, icon: 'EXP' },
 ];
 
 export function SystemMap() {

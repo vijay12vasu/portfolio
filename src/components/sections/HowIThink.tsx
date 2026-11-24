@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { motion, useSpring, useMotionValue, useTransform, MotionValue, useMotionTemplate, useAnimationFrame } from 'framer-motion';
-import { useProximity, initGlobalPointer, globalPointerX, globalPointerY } from '../../hooks/useProximity';
+import type { PointerEvent } from 'react';
+import { useProximity } from '../../hooks/useProximity';
 
 // ═══════════════════════════════════════════════════════════════
 // TOPIC DATA
@@ -88,6 +89,13 @@ const spatialNodes = [
     shape: 'rounded-xl skew-x-[-8deg]'
   }
 ];
+
+const nodeTextColors: Record<string, string> = {
+  'bg-accent-cyan': 'text-accent-cyan',
+  'bg-accent-blue': 'text-accent-blue',
+  'bg-accent-violet': 'text-accent-violet',
+  'bg-accent-magenta': 'text-accent-magenta',
+};
 
 // ═══════════════════════════════════════════════════════════════
 // LAYER A: VISUAL COMPONENTS — pointer-events: none
@@ -203,13 +211,9 @@ function VisualNode({
   // Depth changes emphasis, not existence.
   // We remove the hard 2px blur that made text illegible, and raise the opacity floor
   // so it multiplies reasonably with the 10% border and 70% text opacities.
-  const baseBlur = node.z < -30 ? 0 : 0; 
   const activeBlur = useTransform(
     [isActiveMV, isFadedMV],
-    ([act, fad]) => {
-      const a = act as number, f = fad as number;
-      return a * 0 + f * 4 + Math.max(0, 1 - a - f) * baseBlur;
-    }
+    ([, fad]) => (fad as number) * 4,
   );
   const blurFilter = useMotionTemplate`blur(${activeBlur}px)`;
 
@@ -310,8 +314,8 @@ function VisualNode({
 // LAYER B: INTERACTION HIT TARGETS — transparent, no visuals
 //
 // These are invisible buttons that track the same spatial
-// position as their visual counterparts. They store refs so
-// the popup layer can read getBoundingClientRect().
+// position as their visual counterparts. A data attribute lets
+// the popup layer query the active target without a ref registry.
 //
 // They NEVER have: opacity, blur, scale, glow, popups,
 // overflow:hidden, or any visual depth styling.
@@ -322,15 +326,13 @@ function NodeHitTarget({
   globalMouseX,
   globalMouseY,
   onActivate,
-  onDeactivate,
-  refCallback
+  onDeactivate
 }: {
   node: typeof spatialNodes[0];
   globalMouseX: MotionValue<number>;
   globalMouseY: MotionValue<number>;
   onActivate: () => void;
   onDeactivate: () => void;
-  refCallback: (el: HTMLButtonElement | null) => void;
 }) {
   // Parallax must match VisualNode exactly
   const parallaxFactorX = node.z * 0.15;
@@ -341,8 +343,7 @@ function NodeHitTarget({
   
   return (
     <motion.button
-      ref={refCallback}
-      className="absolute w-40 h-16 cursor-none focus:outline-none"
+      className="absolute w-40 h-16 cursor-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-cyan focus-visible:ring-offset-4 focus-visible:ring-offset-background"
       style={{ 
         left: node.x, 
         top: node.y, 
@@ -356,7 +357,9 @@ function NodeHitTarget({
       onMouseLeave={onDeactivate}
       onFocus={onActivate}
       onBlur={onDeactivate}
+      onClick={onActivate}
       data-cursor="hover"
+      data-topic={node.id}
       tabIndex={0}
       aria-label={node.label.replace('\n', ' ')}
     />
@@ -377,23 +380,22 @@ function NodeHitTarget({
 
 function PopupLayer({
   activeTopicId,
-  hitTargetRefs,
-  constellationRef
+  getConstellation
 }: {
   activeTopicId: string | null;
-  hitTargetRefs: React.RefObject<Record<string, HTMLButtonElement | null>>;
-  constellationRef: React.RefObject<HTMLDivElement | null>;
+  getConstellation: () => HTMLDivElement | null;
 }) {
   const popupRef = useRef<HTMLDivElement>(null);
   
   // Continuously track hit target position via direct DOM writes (no React re-renders)
   useAnimationFrame(() => {
-    if (!activeTopicId || !popupRef.current || !constellationRef.current) return;
-    const el = hitTargetRefs.current?.[activeTopicId];
+    const constellation = getConstellation();
+    if (!activeTopicId || !popupRef.current || !constellation) return;
+    const el = constellation.querySelector<HTMLButtonElement>(`[data-topic="${activeTopicId}"]`);
     if (!el) return;
     
     const rect = el.getBoundingClientRect();
-    const containerRect = constellationRef.current.getBoundingClientRect();
+    const containerRect = constellation.getBoundingClientRect();
     
     const relCenterX = rect.left - containerRect.left + rect.width / 2;
     const relTop = rect.top - containerRect.top;
@@ -523,21 +525,9 @@ export function HowIThink() {
   const [activeTopicId, setActiveTopicId] = useState<string | null>(null);
   
   // ── Hit target refs for popup positioning ──
-  const hitTargetRefs = useRef<Record<string, HTMLButtonElement | null>>({});
-  const refCallbackCache = useRef<Record<string, (el: HTMLButtonElement | null) => void>>({});
-  
-  // Stable ref callbacks — never recreated, avoids React ref churn
-  const getRefCallback = useCallback((id: string) => {
-    if (!refCallbackCache.current[id]) {
-      refCallbackCache.current[id] = (el: HTMLButtonElement | null) => {
-        hitTargetRefs.current[id] = el;
-      };
-    }
-    return refCallbackCache.current[id];
-  }, []);
-  
   const containerRef = useRef<HTMLDivElement>(null);
   const constellationRef = useRef<HTMLDivElement>(null);
+  const getConstellation = useCallback(() => constellationRef.current, []);
   const [isMobile, setIsMobile] = useState(true);
 
   // ── Mouse tracking ──
@@ -553,7 +543,6 @@ export function HowIThink() {
   const shiftY = useTransform(smoothMouseY, [0, 1], [-15, 15]);
 
   useEffect(() => {
-    initGlobalPointer();
     const checkPointer = () => {
       setIsMobile(window.matchMedia('(prefers-reduced-motion: reduce)').matches || window.innerWidth < 768);
     };
@@ -565,21 +554,20 @@ export function HowIThink() {
     };
   }, []);
 
-  useAnimationFrame(() => {
-    if (isMobile || !containerRef.current) return;
-    const px = globalPointerX.current;
-    const py = globalPointerY.current;
-    if (px === 0 && py === 0) return;
+  const handlePointerMove = (event: PointerEvent<HTMLElement>) => {
+    if (isMobile || event.pointerType === 'touch') return;
+    const { left, top, width, height } = event.currentTarget.getBoundingClientRect();
+    mouseX.set(Math.max(0, Math.min(1, (event.clientX - left) / width)));
+    mouseY.set(Math.max(0, Math.min(1, (event.clientY - top) / height)));
+  };
 
-    const { left, top, width, height } = containerRef.current.getBoundingClientRect();
-    const x = Math.max(0, Math.min(1, (px - left) / width));
-    const y = Math.max(0, Math.min(1, (py - top) / height));
-    mouseX.set(x);
-    mouseY.set(y);
-  });
+  const handlePointerLeave = () => {
+    mouseX.set(0.5);
+    mouseY.set(0.5);
+  };
 
   return (
-    <section id="howithink" ref={containerRef} className="py-32 md:py-48 relative bg-background overflow-hidden perspective-2000">
+    <section id="howithink" ref={containerRef} onPointerMove={handlePointerMove} onPointerLeave={handlePointerLeave} className="py-32 md:py-48 relative bg-background overflow-hidden perspective-2000">
       
       {/* Background decorations */}
       <div className="absolute inset-0 pointer-events-none z-0">
@@ -587,7 +575,7 @@ export function HowIThink() {
         <div className="absolute inset-0 flex items-center justify-center opacity-[0.04]">
           <div className="w-full h-full bg-grid-small [mask-image:radial-gradient(ellipse_at_center,black,transparent_80%)]" />
         </div>
-        <div className="absolute top-[20%] left-[10%] text-[8px] font-mono text-white/10 tracking-[0.3em]">SEC.01 // SPATIAL_MAP</div>
+        <div className="absolute top-[20%] left-[10%] text-[8px] font-mono text-white/10 tracking-[0.3em]">SEC.02 // SPATIAL_MAP</div>
         <div className="absolute bottom-[20%] right-[10%] text-[8px] font-mono text-white/10 tracking-[0.3em]">SYS.ONLINE // NO_ANOMALY</div>
         <div className="absolute top-[30%] right-[15%] w-2 h-2 border-t border-r border-white/10" />
         <div className="absolute bottom-[30%] left-[15%] w-2 h-2 border-b border-l border-white/10" />
@@ -692,8 +680,8 @@ export function HowIThink() {
           >
             {/* Curiosity Core Hit Target */}
             <motion.button
-              ref={getRefCallback('curiosity')}
-              className="absolute top-[50%] left-[50%] w-32 h-32 cursor-none focus:outline-none"
+              data-topic="curiosity"
+              className="absolute top-[50%] left-[50%] w-32 h-32 cursor-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-cyan focus-visible:ring-offset-4 focus-visible:ring-offset-background"
               style={{ 
                 transform: 'translate(-50%, -50%) translateZ(10px)',
                 background: 'transparent',
@@ -705,6 +693,7 @@ export function HowIThink() {
               onMouseLeave={() => setActiveTopicId(null)}
               onFocus={() => setActiveTopicId('curiosity')}
               onBlur={() => setActiveTopicId(null)}
+              onClick={() => setActiveTopicId('curiosity')}
               data-cursor="hover"
               tabIndex={0}
               aria-label="Curiosity Core"
@@ -719,17 +708,17 @@ export function HowIThink() {
                 globalMouseY={smoothMouseY}
                 onActivate={() => setActiveTopicId(node.id)}
                 onDeactivate={() => setActiveTopicId(null)}
-                refCallback={getRefCallback(node.id)}
               />
             ))}
           </motion.div>
           
           {/* ─── LAYER C: POPUP (flat 2D, outside 3D tree) ── */}
-          <PopupLayer
-            activeTopicId={activeTopicId}
-            hitTargetRefs={hitTargetRefs}
-            constellationRef={constellationRef}
-          />
+          {activeTopicId && (
+            <PopupLayer
+              activeTopicId={activeTopicId}
+              getConstellation={getConstellation}
+            />
+          )}
           
         </div>
 
@@ -754,7 +743,7 @@ export function HowIThink() {
                 <div className={`absolute -right-10 -top-10 w-32 h-32 ${node.color} opacity-[0.05] blur-2xl rounded-full transition-opacity group-hover:opacity-[0.15]`} />
                 
                 <div>
-                  <span className={`text-[9px] font-mono tracking-[0.2em] block mb-2 text-${node.color.replace('bg-', '')}`}>ID_{i + 1}</span>
+                  <span className={`mb-2 block text-[9px] font-mono tracking-[0.2em] ${nodeTextColors[node.color]}`}>ID_{i + 1}</span>
                   <h4 className="text-sm font-medium text-white tracking-[0.1em] uppercase whitespace-pre-line leading-tight">
                     {node.label.replace('\n', ' ')}
                   </h4>

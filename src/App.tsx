@@ -3,7 +3,6 @@ import { Hero } from './components/sections/Hero';
 import { About } from './components/sections/About';
 import { HowIThink } from './components/sections/HowIThink';
 import { TechStack } from './components/sections/TechStack';
-import { EchoShowcase } from './components/sections/EchoShowcase';
 import { Projects } from './components/sections/Projects';
 import { Journey } from './components/sections/Journey';
 import { BeyondTheCode } from './components/sections/BeyondTheCode';
@@ -14,14 +13,15 @@ import { SpatialNav } from './components/ui/SpatialNav';
 
 import { SmoothScroll } from './components/ui/SmoothScroll';
 import { LiquidBackground } from './components/ui/LiquidBackground';
-import { motion, useScroll } from 'framer-motion';
+import { MotionConfig, motion, useScroll } from 'framer-motion';
 
 function App() {
   const { scrollYProgress } = useScroll();
 
   return (
+    <MotionConfig reducedMotion="user">
     <SmoothScroll>
-      <div className="noise-overlay"></div>
+      <div className="noise-overlay" aria-hidden="true"></div>
       <LiquidBackground />
       <CustomCursor />
       <SpatialNav />
@@ -33,14 +33,14 @@ function App() {
       />
       
       <div className="bg-background min-h-screen text-text-main relative z-10">
-        <div className="absolute inset-0 bg-grid z-0" />
+        <div aria-hidden="true" className="pointer-events-none absolute inset-0 z-0 bg-grid" />
+        <a href="#main-content" className="skip-link">Skip to content</a>
         <Navbar />
-        <main>
+        <main id="main-content" tabIndex={-1}>
           <Hero />
           <About />
           <HowIThink />
           <TechStack />
-          <EchoShowcase />
           <Projects />
           <Journey />
           <BeyondTheCode />
@@ -49,6 +49,7 @@ function App() {
         <Footer />
       </div>
     </SmoothScroll>
+    </MotionConfig>
   );
 }
 

@@ -1,44 +1,64 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-
-const navItems = [
-  { name: 'Overview', href: '#about' },
-  { name: 'Stack', href: '#stack' },
-  { name: 'Projects', href: '#projects' },
-  { name: 'Journey', href: '#journey' }
-];
+import { primaryNavigation, sectionNavigation } from '../../data/navigation';
+import { useActiveSection } from '../../hooks/useActiveSection';
 
 export function Navbar() {
   const [scrolled, setScrolled] = useState(false);
-  const [activeSection, setActiveSection] = useState('');
+  const activeSection = useActiveSection();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const menuButtonRef = useRef<HTMLButtonElement>(null);
+  const mobileNavRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    const handleScroll = () => {
-      setScrolled(window.scrollY > 50);
+    if (!mobileMenuOpen) return;
 
-      const sections = navItems.map(item => item.href.substring(1));
-      let current = '';
-      for (const section of sections) {
-        const element = document.getElementById(section);
-        if (element) {
-          const rect = element.getBoundingClientRect();
-          if (rect.top <= 200 && rect.bottom >= 200) {
-            current = section;
-            break;
-          }
-        }
+    const focusFrame = window.requestAnimationFrame(() => {
+      mobileNavRef.current?.querySelector<HTMLElement>('a[href]')?.focus();
+    });
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        setMobileMenuOpen(false);
+        menuButtonRef.current?.focus();
+        return;
       }
-      setActiveSection(current);
+
+      if (event.key !== 'Tab' || !mobileNavRef.current) return;
+      const links = Array.from(mobileNavRef.current.querySelectorAll<HTMLElement>('a[href]'));
+      if (links.length === 0) return;
+      const first = links[0];
+      const last = links[links.length - 1];
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
     };
 
-    window.addEventListener('scroll', handleScroll, { passive: true });
-    return () => window.removeEventListener('scroll', handleScroll);
+    document.addEventListener('keydown', handleKeyDown);
+    return () => {
+      window.cancelAnimationFrame(focusFrame);
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [mobileMenuOpen]);
+
+  useEffect(() => {
+    const updateScrolled = () => {
+      setScrolled(window.scrollY > 50);
+    };
+
+    updateScrolled();
+    window.addEventListener('scroll', updateScrolled, { passive: true });
+    return () => window.removeEventListener('scroll', updateScrolled);
   }, []);
 
   return (
     <>
       <motion.nav 
+        aria-label="Primary navigation"
         initial={{ y: -100 }}
         animate={{ y: 0 }}
         transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
@@ -58,12 +78,13 @@ export function Navbar() {
 
         {/* Desktop Nav */}
         <div className="hidden md:flex items-center gap-8">
-          {navItems.map((item) => {
-            const isActive = activeSection === item.href.substring(1);
+          {primaryNavigation.map((item) => {
+            const isActive = activeSection === item.id;
             return (
               <a
-                key={item.name}
-                href={item.href}
+                key={item.id}
+                href={`#${item.id}`}
+                aria-current={isActive ? 'location' : undefined}
                 className={`relative text-[11px] font-mono uppercase tracking-widest transition-colors duration-300 ${
                   isActive ? 'text-white' : 'text-white/40 hover:text-white/80'
                 }`}
@@ -75,7 +96,7 @@ export function Navbar() {
                     transition={{ type: "spring", stiffness: 400, damping: 30 }}
                   />
                 )}
-                {item.name}
+                {item.label}
               </a>
             );
           })}
@@ -83,6 +104,11 @@ export function Navbar() {
 
         {/* Mobile Menu Toggle */}
         <button 
+          ref={menuButtonRef}
+          type="button"
+          aria-label={mobileMenuOpen ? 'Close navigation menu' : 'Open navigation menu'}
+          aria-expanded={mobileMenuOpen}
+          aria-controls="mobile-navigation"
           className="md:hidden text-white z-50 p-2 opacity-60 hover:opacity-100 transition-opacity"
           onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
         >
@@ -107,23 +133,28 @@ export function Navbar() {
       <AnimatePresence>
         {mobileMenuOpen && (
           <motion.div
+            ref={mobileNavRef}
+            id="mobile-navigation"
+            role="navigation"
+            aria-label="Mobile navigation"
             initial={{ opacity: 0, backdropFilter: 'blur(0px)' }}
             animate={{ opacity: 1, backdropFilter: 'blur(16px)' }}
             exit={{ opacity: 0, backdropFilter: 'blur(0px)' }}
             transition={{ duration: 0.3 }}
-            className="fixed inset-0 z-40 bg-[#030305]/95 flex flex-col items-center justify-center gap-10"
+            className="fixed inset-0 z-40 flex flex-col items-center justify-center gap-5 overflow-y-auto bg-[#030305]/95 px-6 py-20 backdrop-blur-xl sm:gap-6"
           >
-            {navItems.map((item, idx) => (
+            {sectionNavigation.map((item, idx) => (
               <motion.a
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: idx * 0.1 }}
-                key={item.name}
-                href={item.href}
+                key={item.id}
+                href={`#${item.id}`}
                 onClick={() => setMobileMenuOpen(false)}
-                className="text-lg font-mono uppercase tracking-[0.2em] text-white/50 hover:text-white transition-colors"
+                aria-current={activeSection === item.id ? 'location' : undefined}
+                className="rounded px-3 py-1 text-sm font-mono uppercase tracking-[0.17em] text-white/55 transition-colors hover:text-white focus-visible:text-white sm:text-base"
               >
-                {item.name}
+                <span className="mr-3 text-[10px] text-accent-cyan/70">{item.number}</span>{item.label}
               </motion.a>
             ))}
           </motion.div>

@@ -1,454 +1,187 @@
-import { useState, useRef, useEffect } from 'react';
-import { motion, useMotionValue, useSpring, useTransform, MotionValue, useMotionTemplate, useAnimationFrame } from 'framer-motion';
-import { skillCategories } from '../../data/skills';
-import { useProximity, initGlobalPointer, globalPointerX, globalPointerY } from '../../hooks/useProximity';
+import { useState } from 'react';
+import type { CSSProperties, PointerEvent } from 'react';
+import {
+  motion,
+  useMotionTemplate,
+  useMotionValue,
+  useReducedMotion,
+  useSpring,
+  useTransform,
+} from 'framer-motion';
+import { skillCategories, type SkillCategory, type SkillItem } from '../../data/skills';
+import { getTechnologyColor } from '../../data/technologyColors';
+import { TechnologyMark } from '../ui/TechnologyMark';
 
-// Helper to determine spatial depth for each plane
-const getCategoryDepth = (domain: string, isMobile: boolean) => {
-  if (isMobile) return 0;
-  switch (domain) {
-    case 'CORE': return -150;
-    case 'DATA': return -50;
-    case 'WEB': return 50;
-    case 'CURRENTLY LEARNING': return 150;
-    default: return 0;
-  }
+const categoryLabels: Record<string, string> = {
+  CORE: 'Programming Languages',
+  WEB: 'Web Development',
+  DATA: 'Data & Databases',
+  'CURRENTLY LEARNING': 'Currently Learning',
 };
 
-const getCategoryColor = (domain: string) => {
-  switch (domain) {
-    case 'WEB': return '59, 130, 246'; // blue
-    case 'CORE': return '139, 92, 246'; // violet
-    case 'DATA': return '6, 182, 212'; // cyan
-    case 'CURRENTLY LEARNING': return '245, 158, 11'; // amber
-    default: return '255, 255, 255';
-  }
-};
+const categoryAccents = ['#22D3EE', '#A78BFA', '#60A5FA', '#F59E0B'];
 
-// TechNode Component to handle local proximity
-function TechNode({ 
-  skill, 
-  rgb, 
-  isMobile, 
-  isHovered, 
-  isFaded, 
-  onHover, 
-  onLeave 
-}: { 
-  skill: any, 
-  rgb: string, 
-  isMobile: boolean, 
-  isHovered: boolean, 
-  isFaded: boolean,
-  onHover: () => void,
-  onLeave: () => void
-}) {
-  const nodeRef = useRef<HTMLButtonElement>(null);
-  const proximity = useProximity(nodeRef, 140); // 140px interaction radius for small dense nodes
-  
-  const proximityOpacity = useTransform(proximity, [0, 1], [0, 1]);
-  const proximityBgAlpha = useTransform(proximity, [0, 1], [0.5, 0.7]);
-  
-  const lightProximity = useProximity(nodeRef, 400); // Wider radius for the torch light
-  const proximityGlow = useTransform(lightProximity, [0, 1], [0, 0.8]); // Smooth falloff over distance
-  
-  // Smoothly blend states using soft springs
-  const springConfig = { damping: 25, stiffness: 120, mass: 0.8 };
-  const isHoveredMV = useSpring(isHovered ? 1 : 0, springConfig);
-  const isFadedMV = useSpring(isFaded ? 1 : 0, springConfig);
+function TechnologyTile({ skill, index, reduceMotion }: { skill: SkillItem; index: number; reduceMotion: boolean }) {
+  const [isActive, setIsActive] = useState(false);
+  const pointerX = useMotionValue(0);
+  const pointerY = useMotionValue(0);
+  const springConfig = { damping: 24, stiffness: 180, mass: 0.45 };
+  const x = useSpring(useTransform(pointerX, [-1, 1], [-2, 2]), springConfig);
+  const y = useSpring(useTransform(pointerY, [-1, 1], [-2, 2]), springConfig);
+  const rotateX = useSpring(useTransform(pointerY, [-1, 1], [2.5, -2.5]), springConfig);
+  const rotateY = useSpring(useTransform(pointerX, [-1, 1], [-2.5, 2.5]), springConfig);
+  const glowX = useTransform(pointerX, [-1, 1], [0, 100]);
+  const glowY = useTransform(pointerY, [-1, 1], [0, 100]);
+  const pointerGlow = useMotionTemplate`radial-gradient(115px circle at ${glowX}% ${glowY}%, color-mix(in srgb, var(--skill-color) 21%, transparent), transparent 78%)`;
+  const learning = skill.status === 'LEARNING' || skill.status === 'EXPLORING';
+  const color = getTechnologyColor(skill.name);
 
-  // Mathematically continuous Z interpolation to eliminate edge-snapping jitter
-  const activeZ = useTransform(
-    [proximity, isHoveredMV, isFadedMV],
-    ([prox, hov, fad]) => {
-      if (isMobile) return 0;
-      const p = prox as number;
-      const h = hov as number;
-      const f = fad as number;
-      const baseZ = p * 20;
-      // Active moves forward (40), Faded moves back (-10). 
-      // Weighted average eliminates jumps when hovering adjacent nodes.
-      return h * 40 + f * -10 + Math.max(0, 1 - h - f) * baseZ;
-    }
-  );
+  const handlePointerEnter = (event: PointerEvent<HTMLLIElement>) => {
+    if (reduceMotion || event.pointerType === 'touch') return;
+    setIsActive(true);
+  };
 
-  const activeOpacity = useTransform(
-    [isHoveredMV, isFadedMV],
-    ([hov, fad]) => {
-      if (isMobile) return 1;
-      const h = hov as number;
-      const f = fad as number;
-      return h * 1 + f * 0.4 + Math.max(0, 1 - h - f) * 1;
-    }
-  );
+  const handlePointerMove = (event: PointerEvent<HTMLLIElement>) => {
+    if (reduceMotion || event.pointerType === 'touch') return;
+    const bounds = event.currentTarget.getBoundingClientRect();
+    pointerX.set(((event.clientX - bounds.left) / bounds.width) * 2 - 1);
+    pointerY.set(((event.clientY - bounds.top) / bounds.height) * 2 - 1);
+  };
 
-  const bgOpacity = useTransform(
-    [proximityBgAlpha, isHoveredMV, isFadedMV],
-    ([proxAlpha, hov, fad]) => {
-      if (isMobile) return 0.5;
-      const h = hov as number;
-      const f = fad as number;
-      const p = proxAlpha as number;
-      return h * 0.95 + f * 0.4 + Math.max(0, 1 - h - f) * p;
-    }
-  );
-  
-  const activeBg = useMotionTemplate`rgba(10,10,15,${bgOpacity})`;
-
-  // Smooth shadow and border values
-  const shadowY = useTransform(isHoveredMV, [0, 1], [10, 20]);
-  const shadowBlur = useTransform(isHoveredMV, [0, 1], [20, 40]);
-  const shadowAlpha1 = useTransform(isHoveredMV, [0, 1], [0.4, 0.8]);
-  const shadowAlpha2 = useTransform(isHoveredMV, [0, 1], [0, 0.15]);
-  const activeBoxShadow = useMotionTemplate`0 ${shadowY}px ${shadowBlur}px rgba(0,0,0,${shadowAlpha1}), 0 0 20px rgba(${rgb}, ${shadowAlpha2})`;
-  const borderColorOpacity = useTransform(isHoveredMV, [0, 1], [0.05, 0.4]);
-  const activeBorderColor = useMotionTemplate`rgba(${isHovered ? rgb : '255,255,255'}, ${borderColorOpacity})`;
-
-  // The node itself catches light based on cursor distance. No moving flashlight needed.
+  const handleLeave = () => {
+    setIsActive(false);
+    pointerX.set(0);
+    pointerY.set(0);
+  };
 
   return (
-    <motion.button
-      ref={nodeRef}
-      key={skill.name}
-      tabIndex={0}
-      onMouseEnter={onHover}
-      onMouseLeave={onLeave}
-      onFocus={onHover}
-      onBlur={onLeave}
-      className="relative cursor-none focus:outline-none group/node block"
-      data-cursor={isMobile ? "default" : "hover"}
-      style={{ z: activeZ }}
+    <motion.li
+      initial={reduceMotion ? false : { opacity: 0, y: 8 }}
+      whileInView={{ opacity: 1, y: 0 }}
+      viewport={{ once: true, margin: '-28px' }}
+      transition={{ duration: reduceMotion ? 0 : 0.38, delay: reduceMotion ? 0 : Math.min(index * 0.035, 0.18) }}
+      onPointerEnter={handlePointerEnter}
+      onPointerMove={handlePointerMove}
+      onPointerLeave={handleLeave}
+      onFocus={() => !reduceMotion && setIsActive(true)}
+      onBlur={handleLeave}
+      style={{
+        '--skill-color': color,
+        x: reduceMotion ? 0 : x,
+        y: reduceMotion ? 0 : y,
+        rotateX: reduceMotion ? 0 : rotateX,
+        rotateY: reduceMotion ? 0 : rotateY,
+        transformPerspective: 700,
+        transformStyle: reduceMotion ? 'flat' : 'preserve-3d',
+      } as CSSProperties}
+      className="group min-w-0 list-none"
     >
-      <motion.div
-        style={{ 
-          opacity: activeOpacity,
-          borderColor: activeBorderColor,
-          backgroundColor: activeBg,
-          boxShadow: activeBoxShadow
-        }}
-        className="relative px-6 py-4 rounded-none preserve-3d text-left pointer-events-none border ring-0 group-focus/node:ring-1 group-focus/node:ring-white/30 w-full h-full transition-colors duration-150"
+      <div
+        tabIndex={0}
+        aria-label={`${skill.name}, ${skill.status.toLowerCase()}`}
+        className={`tools-tile relative isolate flex min-h-14 min-w-0 items-center gap-3 overflow-hidden rounded-lg border px-3 py-2.5 outline-none transition-[border-color,background-color,transform,box-shadow] duration-300 hover:-translate-y-0.5 focus-visible:-translate-y-0.5 focus-visible:outline-none motion-reduce:transform-none motion-reduce:transition-none ${
+          isActive ? 'tools-tile-active' : ''
+        }`}
       >
-        {/* Micro architectural edge lighting */}
-        {!isMobile && (
-          <>
-            <motion.div 
-              className="absolute top-0 left-0 right-0 h-[1px] bg-gradient-to-r from-transparent to-transparent" 
-              style={{ 
-                backgroundImage: `linear-gradient(to right, transparent, rgba(${rgb},0.4), transparent)`,
-                opacity: isHovered ? 1 : proximityOpacity 
-              }} 
-            />
-            <div className="absolute top-0 left-0 w-1 h-1 border-t border-l border-white/20" />
-            <div className="absolute top-0 right-0 w-1 h-1 border-t border-r border-white/20" />
-            <div className="absolute bottom-0 left-0 w-1 h-1 border-b border-l border-white/20" />
-            <div className="absolute bottom-0 right-0 w-1 h-1 border-b border-r border-white/20" />
-          </>
-        )}
-
-        {/* Node-centered localized light field */}
-        {!isMobile && (
-          <motion.div 
-            className="absolute inset-[-50%] pointer-events-none mix-blend-screen blur-[20px] rounded-full" 
-            style={{ 
-              background: `radial-gradient(circle at center, rgba(${rgb}, 0.4), transparent 70%)`,
-              opacity: proximityGlow,
-              transform: 'translateZ(0px)'
-            }}
+        <motion.span
+          aria-hidden="true"
+          className="pointer-events-none absolute inset-0 -z-10 opacity-0 transition-opacity duration-300 group-hover:opacity-100 group-focus-within:opacity-100 motion-reduce:transition-none"
+          style={{ backgroundImage: pointerGlow }}
+        />
+        <span className="tools-tile-edge pointer-events-none absolute inset-0 -z-10 rounded-[inherit]" aria-hidden="true" />
+        <span className="tools-tile-icon relative flex h-8 w-8 shrink-0 items-center justify-center rounded-md">
+          <TechnologyMark
+            name={skill.name}
+            className="h-[1.125rem] w-[1.125rem] transition-[filter,transform] duration-300 group-hover:scale-110 group-focus-within:scale-110 motion-reduce:transform-none motion-reduce:transition-none"
           />
-        )}
-        
-        <span className={`relative z-10 text-lg md:text-xl font-display tracking-wide transition-colors duration-150 ${isHovered ? 'text-white font-semibold' : 'text-white/70 font-normal'}`}>
+        </span>
+        <span className="min-w-0 flex-1 truncate text-xs font-medium text-white/75 transition-colors duration-200 group-hover:text-white group-focus-within:text-white sm:text-[13px]">
           {skill.name}
         </span>
-        
-        {/* Status indicator */}
-        {(skill.status === 'LEARNING' || skill.status === 'EXPLORING') && (
-          <div className={`absolute top-2 right-2 w-1.5 h-1.5 bg-[#f59e0b] transition-all duration-150 ${isHovered ? 'opacity-100 shadow-[0_0_5px_rgba(245,158,11,0.5)]' : 'opacity-40'}`} title={skill.status} />
-        )}
-        {(skill.status === 'WORKING WITH' || skill.status === 'BUILDING WITH') && (
-          <div className={`absolute top-2 right-2 w-1.5 h-1.5 bg-[#06b6d4] transition-all duration-150 ${isHovered ? 'opacity-100 shadow-[0_0_5px_rgba(6,182,212,0.5)]' : 'opacity-20'}`} title={skill.status} />
-        )}
-      </motion.div>
-    </motion.button>
+        <span
+          aria-hidden="true"
+          className={`tools-status h-1.5 w-1.5 shrink-0 rounded-full ring-2 ring-background ${learning ? 'tools-status-learning' : 'tools-status-working'}`}
+          title={skill.status}
+        />
+        <span className="tools-tile-sweep pointer-events-none absolute inset-y-0 -left-1/2 w-1/3 -skew-x-12" aria-hidden="true" />
+      </div>
+    </motion.li>
   );
 }
 
-function CategoryPlane({
-  category,
-  index,
-  isMobile,
-  hoveredCategory,
-  hoveredSkill,
-  setHoveredCategory,
-  setHoveredSkill,
-  smoothX,
-  smoothY
-}: {
-  category: any;
-  index: number;
-  isMobile: boolean;
-  hoveredCategory: string | null;
-  hoveredSkill: string | null;
-  setHoveredCategory: (domain: string | null) => void;
-  setHoveredSkill: (name: string | null) => void;
-  smoothX: MotionValue<number>;
-  smoothY: MotionValue<number>;
-}) {
-  const items = category.skills;
-  if (!items.length) return null;
-  
-  const isCategoryHovered = hoveredCategory === category.domain;
-  const isOtherCategoryHovered = hoveredCategory !== null && !isCategoryHovered;
-  
-  // Z-depth controls the physical hierarchy
-  const planeZ = getCategoryDepth(category.domain, isMobile);
-  const rgb = getCategoryColor(category.domain);
-  
-  // Parallax is directly tied to the Z-depth (closer objects parallax more)
-  // Shift scale: planeZ ranges from -150 to 150. We offset so base is positive, then scale down.
-  const parallaxStrengthX = isMobile ? 0 : (planeZ + 300) * 0.08;
-  const parallaxStrengthY = isMobile ? 0 : (planeZ + 300) * 0.04;
-  
-  const xOffset = useTransform(smoothX, [0, 1], [-parallaxStrengthX, parallaxStrengthX]);
-  const yOffset = useTransform(smoothY, [0, 1], [-parallaxStrengthY, parallaxStrengthY]);
+function CategoryRow({ category, index, reduceMotion }: { category: SkillCategory; index: number; reduceMotion: boolean }) {
+  const label = categoryLabels[category.domain] ?? category.domain;
+  const accent = categoryAccents[index % categoryAccents.length];
 
   return (
-    <motion.div 
-      initial={{ opacity: 0, y: 20 }}
+    <motion.section
+      aria-labelledby={`skill-category-${index}`}
+      initial={reduceMotion ? false : { opacity: 0, y: 10 }}
       whileInView={{ opacity: 1, y: 0 }}
-      viewport={{ once: true, margin: "-100px" }}
-      transition={{ duration: 0.8, delay: index * 0.1, ease: [0.16, 1, 0.3, 1] }}
-      className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 lg:gap-16 py-16 border-t border-white/[0.02] group preserve-3d"
-      style={{ 
-        z: planeZ,
-        x: xOffset,
-        y: yOffset
-      }}
-      onMouseEnter={() => !isMobile && setHoveredCategory(category.domain)}
-      onMouseLeave={() => !isMobile && setHoveredCategory(null)}
+      viewport={{ once: true, margin: '-40px' }}
+      transition={{ duration: reduceMotion ? 0 : 0.45, delay: reduceMotion ? 0 : index * 0.07 }}
+      style={{ '--category-accent': accent } as CSSProperties}
+      className="tools-category grid gap-4 border-t border-white/[0.09] py-6 first:border-t-0 first:pt-0 sm:py-7 lg:grid-cols-[12.5rem_minmax(0,1fr)] lg:gap-8 lg:py-8"
     >
-      {/* Isolate the hover opacity state from the initial scroll reveal */}
-      <motion.div 
-        className="w-full flex flex-col lg:flex-row lg:items-center justify-between gap-6 lg:gap-16 preserve-3d"
-        animate={{ opacity: isMobile ? 1 : isOtherCategoryHovered ? 0.3 : 1 }}
-        transition={{ duration: 0.4 }}
-      >
-      {/* Category Environmental Glow */}
-      {!isMobile && (
-        <div 
-          className={`absolute inset-0 bg-[radial-gradient(ellipse_at_center,_rgba(${rgb},0.05),_transparent_60%)] pointer-events-none transition-opacity duration-1000 ${isCategoryHovered ? 'opacity-100' : 'opacity-30'}`}
-          style={{ transform: 'translateZ(-10px)' }}
-        />
-      )}
-
-      {/* Category Label (Left Axis) */}
-      <div className="w-full lg:w-[15%] relative preserve-3d">
-        <h4 className={`text-[11px] font-mono tracking-widest uppercase transition-colors duration-500 ${
-          isCategoryHovered ? 'text-white' : 'text-white/40'
-        }`}>
-          {category.domain}
+      <div className="tools-category-heading flex items-center gap-3 lg:block">
+        <span className="tools-category-number font-mono text-[9px] tracking-[0.18em] text-white/30 lg:mb-2 lg:block">
+          0{index + 1} <i aria-hidden="true">/</i>
+        </span>
+        <h4 id={`skill-category-${index}`} className="relative w-fit text-[10px] font-mono uppercase tracking-[0.19em] text-white/65 lg:mt-2">
+          <span className="tools-category-marker mr-2 inline-block h-1.5 w-1.5 rounded-full" aria-hidden="true" />
+          {label}
+          <span className="tools-category-underline absolute -bottom-2 left-0 h-px w-12" aria-hidden="true" />
         </h4>
-        
-        {!isMobile && (
-          <div className="absolute -left-6 top-1/2 -translate-y-1/2 h-[1px] bg-white/20 transition-all duration-500" style={{ opacity: isCategoryHovered ? 1 : 0.3, width: isCategoryHovered ? '24px' : '16px', backgroundColor: isCategoryHovered ? `rgba(${rgb}, 0.8)` : 'rgba(255,255,255,0.2)' }} />
-        )}
       </div>
-      
-      {/* Skills Interactive Space */}
-      <div className="w-full lg:w-[85%] flex flex-wrap items-center gap-4 md:gap-6 preserve-3d relative">
-        {items.map((skill: any) => {
-          const isHovered = hoveredSkill === skill.name;
-          const isFaded = hoveredSkill !== null && !isHovered;
-          
-          return (
-            <TechNode
-              key={skill.name}
-              skill={skill}
-              rgb={rgb}
-              isMobile={isMobile}
-              isHovered={isHovered}
-              isFaded={isFaded}
-              onHover={() => setHoveredSkill(skill.name)}
-              onLeave={() => setHoveredSkill(null)}
-            />
-          );
-        })}
-      </div>
-      </motion.div>
-    </motion.div>
+      <ul aria-label={label} className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4">
+        {category.skills.map((skill, skillIndex) => (
+          <TechnologyTile key={skill.name} skill={skill} index={skillIndex} reduceMotion={reduceMotion} />
+        ))}
+      </ul>
+    </motion.section>
   );
 }
 
 export function TechStack() {
-  const [hoveredSkill, setHoveredSkill] = useState<string | null>(null);
-  const [hoveredCategory, setHoveredCategory] = useState<string | null>(null);
-  
-  const [isMobile, setIsMobile] = useState(true);
-  const containerRef = useRef<HTMLElement>(null);
-  
-  const mouseX = useMotionValue(0.5);
-  const mouseY = useMotionValue(0.5);
-
-  useEffect(() => {
-    initGlobalPointer();
-    const checkDevice = () => {
-      setIsMobile(
-        window.matchMedia('(prefers-reduced-motion: reduce)').matches || 
-        !window.matchMedia('(pointer: fine)').matches ||
-        window.innerWidth < 768
-      );
-    };
-    checkDevice();
-    window.addEventListener('resize', checkDevice, { passive: true });
-    
-    return () => {
-      window.removeEventListener('resize', checkDevice);
-    };
-  }, []);
-
-  useAnimationFrame(() => {
-    if (isMobile || !containerRef.current) return;
-    const px = globalPointerX.current;
-    const py = globalPointerY.current;
-    if (px === 0 && py === 0) return;
-
-    const { left, top, width, height } = containerRef.current.getBoundingClientRect();
-    const x = Math.max(0, Math.min(1, (px - left) / width));
-    const y = Math.max(0, Math.min(1, (py - top) / height));
-    mouseX.set(x);
-    mouseY.set(y);
-  });
-
-  // Subtle parallax springs for the entire environment
-  const springConfig = { damping: 50, stiffness: 100, mass: 1 };
-  const smoothX = useSpring(mouseX, springConfig);
-  const smoothY = useSpring(mouseY, springConfig);
-
-  const pointerRotateX = useTransform(smoothY, [0, 1], [6, -6]);
-  const pointerRotateY = useTransform(smoothX, [0, 1], [-8, 8]);
-  
-  // Parallax for ambient lighting following pointer
-  const lightX = useTransform(smoothX, [0, 1], ['-20%', '20%']);
-  const lightY = useTransform(smoothY, [0, 1], ['-20%', '20%']);
+  const prefersReducedMotion = useReducedMotion();
+  const reduceMotion = prefersReducedMotion ?? false;
 
   return (
-    <section 
-      id="stack" 
-      ref={containerRef} 
-      className="py-32 md:py-48 relative bg-background overflow-hidden perspective-[2500px]"
-    >
-      {/* 3D Container for entire section */}
-      <motion.div 
-        className="w-full h-full preserve-3d will-change-transform"
-        style={{
-          rotateX: isMobile ? 0 : pointerRotateX,
-          rotateY: isMobile ? 0 : pointerRotateY,
-        }}
-      >
-        
-        {/* Spatial Grid Background & Base Light */}
-        {!isMobile && (
-          <div className="absolute inset-0 pointer-events-none preserve-3d" style={{ transform: 'translateZ(-300px)' }}>
-            <div className="absolute inset-[-50%] bg-[linear-gradient(rgba(255,255,255,0.01)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.01)_1px,transparent_1px)] bg-[size:64px_64px] [mask-image:radial-gradient(ellipse_at_center,black_40%,transparent_80%)]" />
-            <div className="absolute top-[20%] left-[10%] w-[1px] h-[60%] bg-gradient-to-b from-transparent via-white/10 to-transparent" />
-            <div className="absolute top-[30%] right-[15%] w-[1px] h-[40%] bg-gradient-to-b from-transparent via-accent-cyan/10 to-transparent" />
-            <div className="absolute top-1/2 left-[10%] right-[15%] h-[1px] bg-gradient-to-r from-transparent via-white/5 to-transparent" />
-            
-            {/* Extremely subtle ambient background light reacting to pointer */}
-            <motion.div 
-              className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[1000px] h-[800px] opacity-[0.03] blur-[100px]" 
-              style={{ 
-                background: 'radial-gradient(ellipse at center, rgba(139,92,246,1), transparent 70%)',
-                x: lightX,
-                y: lightY
-              }} 
-            />
-            
-            {/* Coordinate markers */}
-            <div className="absolute top-[20%] left-[10%] -translate-x-full pr-4 text-[8px] font-mono text-white/20 tracking-widest">
-              Z:-300 / Y:20
-            </div>
-            <div className="absolute bottom-[20%] right-[15%] translate-x-full pl-4 text-[8px] font-mono text-white/20 tracking-widest">
-              Z:-300 / ENV:READY
-            </div>
-          </div>
-        )}
+    <section id="stack" className="tools-section relative isolate scroll-mt-16 overflow-hidden bg-background py-20 sm:py-24 md:py-28">
+      <div className="tools-atmosphere pointer-events-none absolute inset-0 -z-10 overflow-hidden" aria-hidden="true">
+        <div className="tools-ambient tools-ambient-cyan absolute -left-40 top-16 h-[30rem] w-[30rem] rounded-full" />
+        <div className="tools-ambient tools-ambient-violet absolute -right-40 top-[38%] h-[28rem] w-[28rem] rounded-full" />
+        <div className="tools-grid absolute inset-0" />
+        <div className="tools-vignette absolute inset-0" />
+      </div>
 
-        <div className="max-w-7xl mx-auto px-6 md:px-12 relative z-10 preserve-3d">
-          
-          <div className="mb-32 flex flex-col md:flex-row md:items-end justify-between gap-8 preserve-3d" style={{ transform: isMobile ? 'none' : 'translateZ(100px)' }}>
-            <div>
-              <div className="flex items-center gap-4 mb-8">
-                <span className="w-12 h-[1px] bg-accent-blue/30" />
-                <h3 className="text-[10px] font-mono text-accent-blue tracking-widest uppercase">
-                  02 / TECHNICAL SPACE
-                </h3>
-              </div>
-              <p className="text-4xl md:text-5xl text-white font-bold tracking-tighter max-w-2xl leading-[1.1] font-display">
-                The architecture I use to engineer systems.
-              </p>
-            </div>
+      <div className="tools-inner relative z-10 mx-auto w-full max-w-6xl px-5 sm:px-8 lg:px-12">
+        <motion.header
+          initial={reduceMotion ? false : { opacity: 0, y: 12 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true, margin: '-32px' }}
+          transition={{ duration: reduceMotion ? 0 : 0.45 }}
+          className="mb-10 max-w-3xl sm:mb-12"
+        >
+          <div className="mb-4 flex items-center gap-3">
+            <span aria-hidden="true" className="h-px w-8 bg-gradient-to-r from-accent-cyan to-accent-violet/30" />
+            <p className="text-[10px] font-mono uppercase tracking-[0.22em] text-accent-cyan">03 / TOOLS</p>
           </div>
-
-          {/* Capability Planes */}
-          <div className="w-full mx-auto flex flex-col relative preserve-3d">
-            
-            {/* Vertical Depth Connection Line */}
-            {!isMobile && (
-              <div className="absolute left-[8%] top-0 bottom-0 w-[1px] bg-gradient-to-b from-transparent via-white/10 to-transparent pointer-events-none" style={{ transform: 'translateZ(-50px)' }} />
-            )}
-
-            {skillCategories.map((category, index) => (
-              <CategoryPlane 
-                key={category.domain}
-                category={category}
-                index={index}
-                isMobile={isMobile}
-                hoveredCategory={hoveredCategory}
-                hoveredSkill={hoveredSkill}
-                setHoveredCategory={setHoveredCategory}
-                setHoveredSkill={setHoveredSkill}
-                smoothX={smoothX}
-                smoothY={smoothY}
-              />
-            ))}
+          <h3 className="font-display text-3xl font-semibold leading-tight tracking-tight text-white sm:text-4xl md:text-5xl">
+            Technologies in practice.
+          </h3>
+          <div className="mt-4 flex flex-wrap gap-x-5 gap-y-2 text-[9px] font-mono uppercase tracking-[0.15em] text-white/45" aria-label="Skill status legend">
+            <span className="inline-flex items-center gap-2"><i aria-hidden="true" className="tools-legend-dot tools-status-working h-1.5 w-1.5 rounded-full" />Working with</span>
+            <span className="inline-flex items-center gap-2"><i aria-hidden="true" className="tools-legend-dot tools-status-learning h-1.5 w-1.5 rounded-full" />Currently learning</span>
           </div>
-          
+        </motion.header>
+
+        <div className="max-w-5xl">
+          {skillCategories.map((category, index) => (
+            <CategoryRow key={category.domain} category={category} index={index} reduceMotion={reduceMotion} />
+          ))}
         </div>
-
-        {/* Subtle Depth Legend (Bottom Right) */}
-        {!isMobile && (
-          <div className="absolute bottom-12 right-12 flex flex-col items-end gap-3 pointer-events-none z-20">
-            <span className="text-[8px] font-mono text-white/20 tracking-widest uppercase mb-2">Spatial Depth Legend</span>
-            
-            <div className="flex items-center gap-4 opacity-60">
-              <span className="text-[9px] font-mono text-[#f59e0b] tracking-widest uppercase w-20 text-right">LEARNING</span>
-              <div className="w-6 h-[1px] bg-[#f59e0b]/50" />
-              <span className="text-[9px] font-mono text-white/30 tracking-[0.2em] w-8">Z:150</span>
-            </div>
-            
-            <div className="flex items-center gap-4 opacity-60">
-              <span className="text-[9px] font-mono text-[#3b82f6] tracking-widest uppercase w-20 text-right">WEB</span>
-              <div className="w-6 h-[1px] bg-[#3b82f6]/50" />
-              <span className="text-[9px] font-mono text-white/30 tracking-[0.2em] w-8">Z:50</span>
-            </div>
-            
-            <div className="flex items-center gap-4 opacity-60">
-              <span className="text-[9px] font-mono text-[#06b6d4] tracking-widest uppercase w-20 text-right">DATA</span>
-              <div className="w-6 h-[1px] bg-[#06b6d4]/50" />
-              <span className="text-[9px] font-mono text-white/30 tracking-[0.2em] w-8">Z:-50</span>
-            </div>
-            
-            <div className="flex items-center gap-4 opacity-60">
-              <span className="text-[9px] font-mono text-[#8b5cf6] tracking-widest uppercase w-20 text-right">CORE</span>
-              <div className="w-6 h-[1px] bg-[#8b5cf6]/50" />
-              <span className="text-[9px] font-mono text-white/30 tracking-[0.2em] w-8">Z:-150</span>
-            </div>
-          </div>
-        )}
-
-      </motion.div>
+      </div>
     </section>
   );
 }
-
